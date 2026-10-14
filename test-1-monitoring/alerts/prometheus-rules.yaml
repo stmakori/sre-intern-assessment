@@ -1,0 +1,77 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cluster-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: assessment.rules
+      rules:
+        # ---------------------------------------------------------------
+        # Alert 1: Pod stuck in CrashLoopBackOff for more than 5 minutes
+        # ---------------------------------------------------------------
+        # A crash-looping container briefly leaves the "waiting" state each
+        # time it restarts. Using max_over_time over 2m smooths out those
+        # gaps so the 5-minute "for" timer does not reset on every restart.
+        - alert: PodCrashLoopBackOff
+          expr: |
+            max_over_time(
+              kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"}[2m]
+            ) >= 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+            description: >-
+              Container {{ $labels.container }} in pod {{ $labels.namespace }}/{{ $labels.pod }}
+              has been in CrashLoopBackOff for more than 5 minutes.
+              Check: kubectl logs -n {{ $labels.namespace }} {{ $labels.pod }} --previous
+
+        # ---------------------------------------------------------------
+        # Alert 2: Node CPU above 80% for more than 3 minutes
+        # ---------------------------------------------------------------
+        # CPU usage = 100% minus the share of time the CPU was idle,
+        # averaged across all cores on each node.
+        - alert: NodeHighCPUUsage
+          expr: |
+            100 * (1 - avg by (instance) (
+              rate(node_cpu_seconds_total{mode="idle"}[2m])
+            )) > 80
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU on node {{ $labels.instance }}"
+            description: >-
+              Node {{ $labels.instance }} CPU usage is {{ $value | printf "%.1f" }}%
+              (above 80% for more than 3 minutes).
+              Check: kubectl top pods -A --sort-by=cpu
+
+        # ---------------------------------------------------------------
+        # Alert 3 (my choice): Container killed for running out of memory
+        # ---------------------------------------------------------------
+        # OOMKills are a common, quiet failure on AKS: the pod restarts and
+        # often looks "Running" again, so nobody notices until users see
+        # errors. It usually means memory limits are too low, or there is
+        # a memory leak.
+        - alert: ContainerOOMKilled
+          expr: |
+            (
+              increase(kube_pod_container_status_restarts_total[10m]) >= 1
+            )
+            and on (namespace, pod, container)
+            (
+              kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+            )
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Container OOMKilled in {{ $labels.namespace }}/{{ $labels.pod }}"
+            description: >-
+              Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }}
+              was killed for exceeding its memory limit in the last 10 minutes.
+              Check the limit with: kubectl describe pod -n {{ $labels.namespace }} {{ $labels.pod }}

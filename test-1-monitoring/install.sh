@@ -38,6 +38,9 @@ helm upgrade --install alloy grafana/alloy -n monitoring \
 echo ">>> Deploying test workloads"
 kubectl apply -f "$CONFIG/test-workloads.yaml"
 
+echo ">>> Applying alert rules"
+kubectl apply -f test-1-monitoring/alerts/prometheus-rules.yaml
+
 echo ">>> Done. Grafana password:"
 kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d; echo
 echo "Access Grafana: kubectl port-forward -n monitoring svc/kube-prometheus-stack-grafana 3000:80"

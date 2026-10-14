@@ -1,0 +1,47 @@
+# Workloads used ONLY to prove the alerts fire. Delete after testing:
+#   kubectl delete namespace alert-tests
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: alert-tests
+---
+# Triggers NodeHighCPUUsage: one busy loop per CPU core
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cpu-burner
+  namespace: alert-tests
+spec:
+  restartPolicy: Never
+  containers:
+    - name: burn
+      image: busybox:1.36
+      command: ["sh", "-c"]
+      args:
+        - |
+          for i in $(seq $(nproc)); do
+            ( while :; do :; done ) &
+          done
+          wait
+---
+# Triggers ContainerOOMKilled: 'tail /dev/zero' keeps allocating memory
+# until it exceeds the 50Mi limit and the kernel kills it
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory-hog
+  namespace: alert-tests
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: memory-hog }
+  template:
+    metadata:
+      labels: { app: memory-hog }
+    spec:
+      containers:
+        - name: hog
+          image: busybox:1.36
+          command: ["sh", "-c", "sleep 20; tail /dev/zero"]
+          resources:
+            limits: { memory: 50Mi }
