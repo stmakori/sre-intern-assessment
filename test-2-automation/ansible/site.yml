@@ -1,0 +1,63 @@
+# Configures the gateway (VM 1) as a web server, and proves the private
+# app server (VM 2) is reachable through the gateway.
+- name: Configure gateway (VM 1)
+  hosts: gateway
+  become: true
+  vars:
+    new_hostname: gateway-vm1
+  tasks:
+    - name: Set the system hostname
+      ansible.builtin.hostname:
+        name: "{{ new_hostname }}"
+
+    - name: Make the hostname resolve locally
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1'
+        line: "127.0.1.1 {{ new_hostname }}"
+
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Deploy a simple landing page
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        mode: "0644"
+        content: |
+          <!DOCTYPE html>
+          <html><head><title>SRE Assessment</title></head>
+          <body>
+            <h1>Hello from {{ new_hostname }}</h1>
+            <p>Provisioned by Terraform, configured by Ansible.</p>
+          </body></html>
+
+    - name: Ensure nginx is running and starts on boot
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+
+    - name: Check nginx responds locally
+      ansible.builtin.uri:
+        url: http://localhost
+        return_content: true
+      register: page
+      failed_when: "'Hello from' not in page.content"
+
+- name: Configure app server (VM 2) through the gateway
+  hosts: app
+  become: true
+  tasks:
+    - name: Set the system hostname
+      ansible.builtin.hostname:
+        name: app-vm2
+
+    - name: Make the hostname resolve locally
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1'
+        line: "127.0.1.1 app-vm2"
