@@ -1,0 +1,115 @@
+{
+  "title": "3 - On-call Triage",
+  "uid": "oncall-triage",
+  "tags": ["assessment"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat", "title": "Firing alerts",
+      "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "count(ALERTS{alertstate=\"firing\", alertname!~\"Watchdog|InfoInhibitor\"}) or vector(0)" }],
+      "fieldConfig": { "defaults": { "unit": "none",
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none" }
+    },
+    {
+      "type": "stat", "title": "Crash-looping containers",
+      "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "count(kube_pod_container_status_waiting_reason{reason=\"CrashLoopBackOff\"} == 1) or vector(0)" }],
+      "fieldConfig": { "defaults": { "unit": "none",
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none" }
+    },
+    {
+      "type": "stat", "title": "Container restarts (last 1h)",
+      "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "round(sum(increase(kube_pod_container_status_restarts_total[1h])))" }],
+      "fieldConfig": { "defaults": { "unit": "none",
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 10 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "area" }
+    },
+    {
+      "type": "stat", "title": "Pending pods",
+      "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(kube_pod_status_phase{phase=\"Pending\"})" }],
+      "fieldConfig": { "defaults": { "unit": "none",
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none" }
+    },
+    {
+      "type": "stat", "title": "Containers last killed by OOM",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(kube_pod_container_status_last_terminated_reason{reason=\"OOMKilled\"}) or vector(0)" }],
+      "fieldConfig": { "defaults": { "unit": "none",
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none" }
+    },
+    {
+      "type": "stat", "title": "Nodes NOT ready",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "count(kube_node_status_condition{condition=\"Ready\", status=\"true\"} == 0) or vector(0)" }],
+      "fieldConfig": { "defaults": { "unit": "none",
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none" }
+    },
+    {
+      "type": "table", "title": "Firing alerts (what is broken right now)",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "ALERTS{alertstate=\"firing\", alertname!~\"Watchdog|InfoInhibitor\"}", "instant": true, "format": "table" }],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true, "__name__": true, "alertstate": true } } } ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "showHeader": true }
+    },
+    {
+      "type": "table", "title": "Top restarting pods (last 1h)",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "topk(10, round(sum by (namespace, pod) (increase(kube_pod_container_status_restarts_total[1h])))) > 0", "instant": true, "format": "table" }],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true }, "renameByName": { "Value": "Restarts (1h)" } } } ],
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "Restarts (1h)", "desc": true } ] }
+    },
+    {
+      "type": "timeseries", "title": "Top 10 pods by CPU (cores)",
+      "gridPos": { "x": 0, "y": 12, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "topk(10, sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{container!=\"\"}[5m])))", "legendFormat": "{{namespace}}/{{pod}}" }],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 3, "custom": { "fillOpacity": 5 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "type": "timeseries", "title": "Top 10 pods by memory",
+      "gridPos": { "x": 8, "y": 12, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "topk(10, sum by (namespace, pod) (container_memory_working_set_bytes{container!=\"\"}))", "legendFormat": "{{namespace}}/{{pod}}" }],
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "fillOpacity": 5 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "type": "timeseries", "title": "Memory used vs limit (%) - OOM early warning",
+      "gridPos": { "x": 16, "y": 12, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "topk(10, 100 * max by (namespace, pod, container) (container_memory_working_set_bytes{container!=\"\"}) / max by (namespace, pod, container) (kube_pod_container_resource_limits{resource=\"memory\"}))", "legendFormat": "{{namespace}}/{{pod}}/{{container}}" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "custom": { "fillOpacity": 5, "thresholdsStyle": { "mode": "line" } },
+        "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 90 } ] } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "type": "logs", "title": "Recent error logs (all namespaces)",
+      "gridPos": { "x": 0, "y": 20, "w": 24, "h": 10 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [{ "refId": "A", "queryType": "range", "expr": "{namespace=~\".+\"} |~ \"(?i)error\"" }],
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true, "dedupStrategy": "none", "showLabels": true }
+    }
+  ]
+}
