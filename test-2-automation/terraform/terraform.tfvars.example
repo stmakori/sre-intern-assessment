@@ -1,0 +1,7 @@
+# Copy to terraform.tfvars (git-ignored) to override defaults.
+# Preferred: set sensitive values as environment variables instead:
+#   export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+#   export TF_VAR_my_ip=$(curl -s -4 https://ifconfig.me)
+location            = "southafricanorth"
+vm_size             = "Standard_B2ats_v2"
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
