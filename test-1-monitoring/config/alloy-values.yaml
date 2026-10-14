@@ -1,0 +1,13 @@
+controller:
+  type: daemonset
+  # Also run on the control-plane node so logs are collected from ALL pods
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+alloy:
+  mounts:
+    varlog: true
+  configMap:
+    create: true
