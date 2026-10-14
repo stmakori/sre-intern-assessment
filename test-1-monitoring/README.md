@@ -1,4 +1,4 @@
-# Test 1 — Monitoring Stack
+# Test 1: Monitoring Stack
 
 Logging and metrics monitoring for a Kubernetes cluster, built on a local 3-node
 **kind** cluster to simulate the team's AKS environment.
@@ -15,7 +15,7 @@ Everything in this folder rebuilds with one command: `./test-1-monitoring/instal
 
 ---
 
-## Part A — Tool Selection
+## Part A: Tool Selection
 
 ### Logging: Grafana Alloy + Loki + Grafana
 
@@ -58,7 +58,7 @@ to Loki.
 
 ---
 
-## Part B — Setup
+## Part B: Setup
 
 ### Environment
 
@@ -92,18 +92,21 @@ flowchart LR
 ```
 
 ### Folder layout
+
+```text
 test-1-monitoring/
-├── install.sh # rebuilds everything below, in order
+├── install.sh                  # rebuilds everything below, in order
 ├── config/
-│ ├── kind-cluster.yaml # 3-node kind cluster
-│ ├── loki-values.yaml # Loki single-binary, filesystem storage
-│ ├── kube-prometheus-stack-values.yaml
-│ ├── alloy-values.yaml # Alloy as a DaemonSet (incl. control-plane node)
-│ ├── alloy-config.alloy # log discovery, labelling and shipping pipeline
-│ └── test-workloads.yaml # demo apps that generate logs + a crash-looping pod
-├── dashboards/ # Grafana dashboards as JSON + loader script
-├── alerts/ # PrometheusRule, alert test workloads, screenshots
+│   ├── kind-cluster.yaml       # 3-node kind cluster
+│   ├── loki-values.yaml        # Loki single-binary, filesystem storage
+│   ├── kube-prometheus-stack-values.yaml
+│   ├── alloy-values.yaml       # Alloy as a DaemonSet (incl. control-plane node)
+│   ├── alloy-config.alloy      # log discovery, labelling and shipping pipeline
+│   └── test-workloads.yaml     # demo apps that generate logs + a crash-looping pod
+├── dashboards/                 # Grafana dashboards as JSON + loader script
+├── alerts/                     # PrometheusRule, alert test workloads, screenshots
 └── screenshots/
+```
 
 ### How to run it
 
@@ -153,14 +156,14 @@ kubectl port-forward -n monitoring svc/kube-prometheus-stack-prometheus 9090:909
 
 ---
 
-## Part C — Dashboards
+## Part C: Dashboards
 
 All dashboards are JSON files in [`dashboards/`](dashboards/), loaded automatically by
 the Grafana sidecar. Because they are provisioned, changes made in the Grafana UI cannot
 be saved. The repo is the single source of truth, and dashboards are changed by editing
 the JSON and re-running `dashboards/load-dashboards.sh`.
 
-### Dashboard 1 — Cluster Health Overview
+### Dashboard 1: Cluster Health Overview
 
 ![](screenshots/04-dashboard-cluster-health.png)
 
@@ -175,7 +178,7 @@ the JSON and re-running `dashboards/load-dashboards.sh`.
 `Failed`. A "failed pods" count on its own would show 0 while a pod is crashing every
 minute, which is misleading on a health dashboard.
 
-### Dashboard 2 — Application Logs
+### Dashboard 2: Application Logs
 
 ![](screenshots/05-dashboard-application-logs.png)
 
@@ -194,7 +197,7 @@ minute, which is misleading on a health dashboard.
   but can over-count (for example a line saying "0 errors"). With structured JSON logs,
   filtering on a parsed `level` field would be more accurate.
 
-### Dashboard 3 — On-call Triage (my choice)
+### Dashboard 3: On-call Triage (my choice)
 
 ![](screenshots/06-dashboard-oncall-triage.png)
 
@@ -214,7 +217,7 @@ do I look first?"* This dashboard is ordered to follow that investigation:
 
 ---
 
-## Part C — Alerts
+## Part C: Alerts
 
 Defined in [`alerts/prometheus-rules.yaml`](alerts/prometheus-rules.yaml) as a
 `PrometheusRule`, which the Prometheus Operator loads automatically.
